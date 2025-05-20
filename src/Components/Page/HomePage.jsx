@@ -58,7 +58,7 @@ const HomePage = () => {
     }, []);
 
     useEffect(() => {
-        const newSocket = io('http://localhost:5000');
+      const newSocket = io('https://backend-fileshare.onrender.com');
         setSocket(newSocket);
         return () => newSocket.disconnect();
     }, []);
