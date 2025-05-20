@@ -40,7 +40,8 @@ const ShareDataPage = () => {
             return;
         }
 
-        const newSocket = io('http://localhost:5000', {
+              const newSocket = io('https://backend-fileshare.onrender.com'
+, {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
         });
