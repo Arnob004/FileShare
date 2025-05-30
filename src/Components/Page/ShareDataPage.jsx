@@ -93,7 +93,16 @@ const ShareDataPage = () => {
         };
         return iconMap[extension] || <File {...iconProps} className="text-gray-400" />;
     }, []);
-
+const handleLeaveRoom =() => {
+        if (socket) {
+            socket.emit('leave_room', {
+                roomId,
+                user: currentUserRef.current
+            });
+            socket.disconnect();
+        }
+        navigate('/home');
+    }
     // File handlers
     const handleFileUpload = async (e) => {
         const selectedFiles = Array.from(e.target.files || []);
@@ -360,6 +369,7 @@ const ShareDataPage = () => {
                                 <StatusIndicator />
                             </div>
                             <motion.button
+                                  onClick={handleLeaveRoom}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 className="p-1.5 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
