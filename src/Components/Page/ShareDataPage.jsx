@@ -13,16 +13,14 @@ const ShareDataPage = () => {
     const fileInputRef = useRef(null);
 
     // Constants
-    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024 // 5GB
 
     // State
-    const [socket, setSocket] = useState(null);
+    const [socket, setSocket] = useState(null); // Initialize with null
     const [connectionStatus, setConnectionStatus] = useState('connecting');
     const [files, setFiles] = useState([]);
-
     const currentUserRef = useRef(null);
     const joinUserRef = useRef(null);
-
     const [currentUser] = useState(() => {
         const user = {
             name: state?.user?.name || 'You',
@@ -32,7 +30,6 @@ const ShareDataPage = () => {
         currentUserRef.current = user;
         return user;
     });
-
     const [joinUser, setJoinUser] = useState(() => {
         const user = {
             name: state?.from?.name || 'Waiting...',
@@ -42,7 +39,6 @@ const ShareDataPage = () => {
         joinUserRef.current = user;
         return user;
     });
-
     useEffect(() => {
         joinUserRef.current = joinUser;
     }, [joinUser]);
@@ -58,7 +54,6 @@ const ShareDataPage = () => {
         ];
         return validTypes.includes(file.type) || !file.type;
     };
-
     const formatFileSize = (bytes) => {
         if (typeof bytes !== 'number' || isNaN(bytes)) return '0 Bytes';
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -93,22 +88,12 @@ const ShareDataPage = () => {
         };
         return iconMap[extension] || <File {...iconProps} className="text-gray-400" />;
     }, []);
-const handleLeaveRoom =() => {
-        if (socket) {
-            socket.emit('leave_room', {
-                roomId,
-                user: currentUserRef.current
-            });
-            socket.disconnect();
-        }
-        navigate('/home');
-    }
+
     // File handlers
     const handleFileUpload = async (e) => {
         const selectedFiles = Array.from(e.target.files || []);
         if (selectedFiles.length === 0) {
             // No files selected, or dialog was cancelled, do nothing.
-            // This is the key fix to prevent unnecessary operations.
             return;
         }
 
@@ -157,8 +142,7 @@ const handleLeaveRoom =() => {
                     data: fileData
                 }, ...prev]);
 
-                // console.log(`[CLIENT - SENDING] File: ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
-                // console.log(`[CLIENT - SENDING] Data URL length: ${fileData.length}`);
+                console.log(`[CLIENT - SENDING] Data URL length: ${fileData.length}`);
 
                 socket.emit('send_file', {
                     roomId, file: {
@@ -176,7 +160,7 @@ const handleLeaveRoom =() => {
             } catch (error) {
                 toast.error(`Error reading or sending: ${file.name}`);
                 setFiles(prev => prev.filter(f => f.id !== fileId));
-                // console.error(`[CLIENT - ERROR] Error reading or sending file ${file.name}:`, error);
+                console.error(`[CLIENT - ERROR] Error reading or sending file ${file.name}:`, error);
             }
         }
         // Clear the input after processing all selected files, regardless of errors
@@ -184,7 +168,6 @@ const handleLeaveRoom =() => {
             fileInputRef.current.value = '';
         }
     };
-
     const handleDownloadFile = useCallback((file) => {
         if (!file.data) {
             toast.error('No file data available for download.');
@@ -200,14 +183,31 @@ const handleLeaveRoom =() => {
             toast.success(`Downloaded: ${file.name}`);
         } catch (error) {
             toast.error(`Error downloading: ${file.name}`);
-            // console.error(`[CLIENT - ERROR] Error during download of ${file.name}:`, error);
+            console.error(`[CLIENT - ERROR] Error during download of ${file.name}:`, error);
         }
     }, []);
-
     const handleRemoveFile = useCallback((id) => {
         setFiles(prev => prev.filter(file => file.id !== id));
         toast.info('File removed from list.');
     }, []);
+    const HandleExitRoom = () => {
+        if (socket && connectionStatus === 'connected') {
+            // Emit 'exitRoom' and expect an 'acknowledgement' from the server
+            socket.emit('exit_room', { roomId, user: currentUserRef.current }, (response) => {
+                if (response.success) {
+                    toast.info('You have left the room.');
+                    navigate('/home');
+                } else {
+                    toast.error(`Failed to leave room: ${response.message || 'Unknown error'}`);
+                    console.error("[CLIENT - ERROR] Failed to leave room:", response.message);
+                }
+            });
+        } else {
+            toast.warn('Not connected to the server. Redirecting to home...');
+            navigate('/home');
+        }
+    };
+
 
     // Socket handlers
     useEffect(() => {
@@ -216,22 +216,21 @@ const handleLeaveRoom =() => {
             navigate('/');
             return;
         }
-
         const SERVER_URL = 'https://backend-fileshare.onrender.com';
         const newSocket = io(SERVER_URL);
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
             setConnectionStatus('connected');
-            console.log(`[SOCKET] Connected to server. Socket ID: ${newSocket.id}`);
             newSocket.emit('join_room', { roomId, user: currentUserRef.current, from: joinUserRef.current });
             toast.success('Connected to room!');
         });
         newSocket.on('disconnect', (reason) => {
             setConnectionStatus('disconnected');
             toast.warning(`Disconnected from server: ${reason}`);
-            // console.log(`[SOCKET] Disconnected from server. Reason: ${reason}`);
-            navigate('/home');
+            console.log(`[SOCKET] Disconnected from server. Reason: ${reason}`);
+            // No navigation here, as it might be an intentional disconnect or network issue
+            // The user will be redirected by HandleExitRoom if they initiate it
             setJoinUser({
                 name: 'Waiting...',
                 photo: 'https://placehold.co/40x40/cccccc/333333?text=👤',
@@ -242,8 +241,8 @@ const handleLeaveRoom =() => {
         newSocket.on('connect_error', (err) => {
             setConnectionStatus('error');
             toast.error(`Connection error: ${err.message}. Please check server status.`);
-            // console.error(`[SOCKET - ERROR] Connection error:`, err);
-            navigate('/home');
+            console.error(`[SOCKET - ERROR] Connection error:`, err);
+            navigate('/home'); // Redirect to home on critical connection error
             setJoinUser({
                 name: 'Waiting...',
                 photo: 'https://placehold.co/40x40/cccccc/333333?text=👤',
@@ -260,6 +259,19 @@ const handleLeaveRoom =() => {
                 }
                 return prevJoinUser;
             });
+        });
+
+        newSocket.on('user_left', (userData) => {
+            toast.info(`${userData.name} has left the room.`);
+            console.log(`[SOCKET] User left: ${userData.name} (UID: ${userData.uid})`);
+            setJoinUser({
+                name: 'Waiting...',
+                photo: 'https://placehold.co/40x40/cccccc/333333?text=👤',
+                uid: `temp_${Math.random().toString(36).slice(2, 11)}`
+            });
+            setTimeout(() => {
+                navigate("/home")
+            }, 2000);
         });
         newSocket.on('new_file', (file) => {
             if (file.data && typeof file.data === 'string' && file.data.startsWith('data:')) {
@@ -369,7 +381,7 @@ const handleLeaveRoom =() => {
                                 <StatusIndicator />
                             </div>
                             <motion.button
-                                  onClick={handleLeaveRoom}
+                                onClick={HandleExitRoom}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 className="p-1.5 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
@@ -428,13 +440,6 @@ const handleLeaveRoom =() => {
                                 className="hidden"
                                 multiple
                                 onChange={handleFileUpload}
-                                accept={
-                                    "image/*," +
-                                    "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
-                                    "application/zip,application/x-rar-compressed,application/x-7z-compressed," +
-                                    "text/javascript,text/typescript,text/html,text/css," +
-                                    "audio/*,video/*"
-                                }
                             />
                         </motion.label>
                     </div>
