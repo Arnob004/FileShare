@@ -45,6 +45,7 @@ const ShareDataPage = () => {
 
     // Helper functions
     const isValidFileType = (file) => {
+
         const validTypes = [
             'image/jpeg', 'image/png', 'image/gif', 'image/webp',
             'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -54,6 +55,12 @@ const ShareDataPage = () => {
         ];
         return validTypes.includes(file.type) || !file.type;
     };
+
+        // Accept all file types
+        return true;
+    };
+
+
     const formatFileSize = (bytes) => {
         if (typeof bytes !== 'number' || isNaN(bytes)) return '0 Bytes';
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -63,6 +70,7 @@ const ShareDataPage = () => {
     };
 
     const getFileIcon = useCallback((fileName) => {
+
         const extension = fileName.split('.').pop().toLowerCase();
         const iconProps = { size: 18 };
         const iconMap = {
@@ -88,6 +96,33 @@ const ShareDataPage = () => {
             mov: <FileVideo {...iconProps} className="text-pink-400" />
         };
         return iconMap[extension] || <File {...iconProps} className="text-gray-400" />;
+
+        // Simplified icon mapping since all types are accepted,
+        // we can broadly categorize or use a generic file icon.
+        const extension = fileName.split('.').pop().toLowerCase();
+        const iconProps = { size: 18 };
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const documentExtensions = ['pdf', 'doc', 'docx', 'txt'];
+        const archiveExtensions = ['zip', 'rar', '7z'];
+        const codeExtensions = ['js', 'ts', 'html', 'css', 'json', 'xml'];
+        const audioExtensions = ['mp3', 'wav', 'aac'];
+        const videoExtensions = ['mp4', 'mov', 'avi', 'mkv'];
+
+        if (imageExtensions.includes(extension)) {
+            return <Image {...iconProps} className="text-blue-400" />;
+        } else if (documentExtensions.includes(extension)) {
+            return <FileText {...iconProps} className="text-red-400" />;
+        } else if (archiveExtensions.includes(extension)) {
+            return <FileArchive {...iconProps} className="text-yellow-400" />;
+        } else if (codeExtensions.includes(extension)) {
+            return <FileCode {...iconProps} className="text-purple-400" />;
+        } else if (audioExtensions.includes(extension)) {
+            return <FileAudio {...iconProps} className="text-green-400" />;
+        } else if (videoExtensions.includes(extension)) {
+            return <FileVideo {...iconProps} className="text-pink-400" />;
+        }
+        return <File {...iconProps} className="text-gray-400" />;
+
     }, []);
 
     // File handlers
@@ -113,10 +148,12 @@ const ShareDataPage = () => {
                 continue;
             }
 
+
             if (!isValidFileType(file)) {
                 toast.error(`Unsupported type: ${file.name}`);
                 continue;
             }
+
 
             const fileId = `${file.name}-${Date.now()}`;
 
@@ -169,6 +206,7 @@ const ShareDataPage = () => {
             fileInputRef.current.value = '';
         }
     };
+
     const handleDownloadFile = useCallback((file) => {
         if (!file.data) {
             toast.error('No file data available for download.');
@@ -187,10 +225,12 @@ const ShareDataPage = () => {
             console.error(`[CLIENT - ERROR] Error during download of ${file.name}:`, error);
         }
     }, []);
+
     const handleRemoveFile = useCallback((id) => {
         setFiles(prev => prev.filter(file => file.id !== id));
         toast.info('File removed from list.');
     }, []);
+
     const HandleExitRoom = () => {
         if (socket && connectionStatus === 'connected') {
             // Emit 'exitRoom' and expect an 'acknowledgement' from the server
@@ -208,6 +248,7 @@ const ShareDataPage = () => {
             navigate('/home');
         }
     };
+
 
 
     // Socket handlers
@@ -367,6 +408,178 @@ const ShareDataPage = () => {
             </div>
         </motion.div>
     );
+
+=======
+
+    // Socket handlers
+    useEffect(() => {
+        if (!roomId) {
+            toast.error('Invalid room ID. Redirecting to home...');
+            navigate('/');
+            return;
+        }
+        const SERVER_URL = 'https://backend-fileshare.onrender.com';
+        const newSocket = io(SERVER_URL);
+        setSocket(newSocket);
+        newSocket.on('connect', () => {
+            setConnectionStatus('connected');
+            newSocket.emit('join_room', { roomId, user: currentUserRef.current, from: joinUserRef.current });
+            toast.success('Connected to room!');
+        });
+        newSocket.on('disconnect', (reason) => {
+            setConnectionStatus('disconnected');
+            toast.warning(`Disconnected from server: ${reason}`);
+            console.log(`[SOCKET] Disconnected from server. Reason: ${reason}`);
+            // No navigation here, as it might be an intentional disconnect or network issue
+            // The user will be redirected by HandleExitRoom if they initiate it
+            setJoinUser({
+                name: 'Waiting...',
+                photo: 'https://placehold.co/40x40/cccccc/333333?text=👤',
+                uid: `temp_${Math.random().toString(36).slice(2, 11)}`
+            });
+        });
+
+        newSocket.on('connect_error', (err) => {
+            setConnectionStatus('error');
+            toast.error(`Connection error: ${err.message}. Please check server status.`);
+            console.error(`[SOCKET - ERROR] Connection error:`, err);
+            navigate('/home'); // Redirect to home on critical connection error
+            setJoinUser({
+                name: 'Waiting...',
+                photo: 'https://placehold.co/40x40/cccccc/333333?text=👤',
+                uid: `temp_${Math.random().toString(36).slice(2, 11)}`
+            });
+        });
+
+        newSocket.on('connected_user', (userData) => {
+            setJoinUser(prevJoinUser => {
+                if (userData.uid !== currentUserRef.current.uid && userData.uid !== prevJoinUser.uid) {
+                    toast.info(`${userData.name} joined the room!`);
+                    console.log(`[SOCKET] User joined: ${userData.name} (UID: ${userData.uid})`);
+                    return userData;
+                }
+                return prevJoinUser;
+            });
+        });
+
+        newSocket.on('user_left', (userData) => {
+            toast.info(`${userData.name} has left the room.`);
+            console.log(`[SOCKET] User left: ${userData.name} (UID: ${userData.uid})`);
+            setJoinUser({
+                name: 'Waiting...',
+                photo: 'https://placehold.co/40x40/cccccc/333333?text=👤',
+                uid: `temp_${Math.random().toString(36).slice(2, 11)}`
+            });
+            setTimeout(() => {
+                navigate("/home")
+            }, 2000);
+        });
+        newSocket.on('new_file', (file) => {
+            if (file.data && typeof file.data === 'string' && file.data.startsWith('data:')) {
+                setFiles(prev => [{
+                    id: `${file.name}-${Date.now()}-received`,
+                    name: file.name,
+                    type: file.type || file.name.split('.').pop().toLowerCase(),
+                    size: formatFileSize(file.size),
+                    data: file.data,
+                    receivedAt: new Date().toISOString()
+                }, ...prev]);
+                toast.success(`Received: ${file.name}`);
+            } else {
+                toast.error(`Invalid file data received for: ${file.name || 'unknown file'}`);
+            }
+        });
+        newSocket.on('error', (error) => {
+            toast.error(`Server error: ${error.message}`);
+            console.error(`[SOCKET - ERROR] Server sent an error:`, error);
+            if (error.message.includes('room') || error.message.includes('permission')) {
+                navigate('/home');
+            }
+        });
+        return () => {
+            console.log('[SOCKET] Cleaning up socket listeners and disconnecting.');
+            newSocket.offAny();
+            newSocket.disconnect();
+        };
+    }, [roomId, navigate]);
+
+    // UI Components
+    const StatusIndicator = () => (
+        <div className={`w-3 h-3 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' :
+            connectionStatus === 'connecting' ? 'bg-yellow-500' :
+                connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
+            }`} />
+    );
+
+    const UserAvatar = ({ user }) => (
+        <div className="w-18 h-18 p-2 rounded-full border flex items-center justify-center overflow-hidden bg-slate-700">
+            {user.photo && user.photo !== 'https://placehold.co/40x40/cccccc/333333?text=👤' ? (
+                <img src={user.photo} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+                <div className="flex justify-center items-center h-full text-black">👤</div>
+            )}
+        </div>
+    );
+
+    const FileItem = ({ file }) => {
+        // Function to remove extension from filename
+        const getFileNameWithoutExtension = (fileName) => {
+            const lastDotIndex = fileName.lastIndexOf('.');
+            if (lastDotIndex === -1) {
+                return fileName;
+            }
+            return fileName.substring(0, lastDotIndex);
+        };
+
+        return (
+            <motion.div
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: 50 }}
+                className="group flex items-center gap-3 p-3 bg-slate-750 hover:bg-slate-700 rounded-lg border border-slate-700/50"
+            >
+                <div className="p-2 rounded-md bg-slate-700/50">
+                    {getFileIcon(file.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                    {/* Display file name without extension */}
+                    <p className="font-medium text-white text-sm truncate">{getFileNameWithoutExtension(file.name)}</p>
+                    <p className="text-xs text-slate-400">
+                        {file.size} • {new Date(file.uploadedAt || file.receivedAt).toLocaleTimeString()}
+                    </p>
+                    {file.isSending && file.progress !== undefined && (
+                        <div className="w-full bg-slate-600 rounded-full h-1 mt-1">
+                            <div
+                                className="bg-blue-500 h-1 rounded-full"
+                                style={{ width: `${file.progress}%` }}
+                            ></div>
+                        </div>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleDownloadFile(file)}
+                        className="sm:opacity-0 group-hover:opacity-100 border rounded-full text-slate-400 hover:text-white p-1"
+                        title="Download File"
+                    >
+                        <Download size={16} />
+                    </motion.button>
+                    <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleRemoveFile(file.id)}
+                        className="sm:opacity-0 group-hover:opacity-100 border rounded-full text-slate-400 hover:text-red-400 p-1"
+                        title="Remove from list"
+                    >
+                        <X size={16} />
+                    </motion.button>
+                </div>
+            </motion.div>
+        );
+    };
 
     return (
         <>

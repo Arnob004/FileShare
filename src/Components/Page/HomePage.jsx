@@ -18,43 +18,13 @@ import 'react-toastify/dist/ReactToastify.css';
 // Helper function to generate random ID
 const generateId = (length = 5) => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    return Array.from({ length }, () =>
-        chars.charAt(Math.floor(Math.random() * chars.length))
-    ).join('');
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 };
 
-// Moved SearchBar outside the component
-const SearchBar = React.memo(({ darkMode, searchText, setSearchText, setShowQr }) => (
-    <div className={`mt-4 p-3 rounded-xl transition ${darkMode ? 'bg-slate-700' : 'bg-sky-100'}`}>
-        <div className="flex justify-between items-center mb-2">
-            <h2 className={`text-xl font-serif tracking-wide capitalize ${darkMode ? 'text-sky-400' : 'text-sky-600'}`}>
-                Quick search
-            </h2>
-            <div className="flex gap-2">
-                <button className={`w-8 h-8 flex justify-center items-center border rounded-md transition ${darkMode ? 'border-slate-600 hover:bg-slate-600' : 'border-slate-400 hover:bg-slate-200'}`}>
-                    <Link to="/scanner">
-                        <Scan size={24} />
-                    </Link>
-                </button>
-                <button
-                    onClick={() => setShowQr(true)}
-                    className={`w-8 h-8 flex justify-center items-center border rounded-md transition ${darkMode ? 'border-slate-600 hover:bg-slate-600' : 'border-slate-400 hover:bg-slate-200'}`}
-                >
-                    <QrCode size={24} />
-                </button>
-            </div>
-        </div>
-        <input
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search by ID..."
-            className={`w-full px-4 py-2 rounded-md border outline-none placeholder:italic transition ${darkMode
-                ? 'bg-slate-600 text-white placeholder-slate-400 border-slate-600 focus:border-sky-500'
-                : 'bg-white text-slate-900 placeholder-slate-500 border-slate-400 focus:border-sky-500'}`}
-        />
-    </div>
-));
 const HomePage = () => {
     // State management
     const [user, setUser] = useState({ name: '', photo: '', uid: '' });
@@ -99,7 +69,7 @@ const HomePage = () => {
 
     // Initialize socket connection
     useEffect(() => {
-        const newSocket = io('http://localhost:5000');
+        const newSocket = io('https://backend-fileshare.onrender.com');
         setSocket(newSocket);
         return () => newSocket.disconnect();
     }, []);
@@ -171,7 +141,11 @@ const HomePage = () => {
             from: user.uid,
             roomId
         });
-        setSentRequests(prev => ({ ...prev, [receiver.uid]: 'pending' }));
+        setSentRequests(prev => ({
+            ...prev,
+            [receiver.uid]: 'pending'
+        }));
+
         toast.info(`Request sent to ${receiver.name} (${receiver.uid})`);
     }, [socket, user]);
 
@@ -266,74 +240,39 @@ const HomePage = () => {
                 <p className="text-sm font-semibold mt-1 capitalize">{usr.name}</p>
                 <p className="text-xs text-gray-400">ID: {usr.uid}</p>
 
-                {isPendingRequest ? (
-                    <div className="flex gap-2 mt-2">
-                        <button
-                            onClick={() => handleAcceptRequest(usr.uid, receivedRequests[usr.uid].roomId)}
-                            className="px-1 py-1 bg-green-500 text-white rounded-md text-sm"
-                        >
-                            <Check />
-                        </button>
-                        <button
-                            onClick={() => handleDeclineRequest(usr.uid)}
-                            className="px-1 py-1 bg-red-500 text-white rounded-md text-sm"
-                        >
-                            <X />
-                        </button>
-                    </div>
-                ) : requestStatus === 'pending' ? (
-                    <button className="px-5 mt-1.5 py-1.5 bg-yellow-500 text-white rounded-md text-sm">
-                        <Loader />
-                    </button>
-                ) : requestStatus === 'accepted' ? (
-                    <button className="px-4 py-1.5 bg-green-500 text-white rounded-md text-sm">
-                        Connected
-                    </button>
-                ) : (
-                    <button
-                        onClick={() => sendJoinRequest(usr)}
-                        className="border capitalize font-serif px-3 mt-1 py-1.5 rounded-md hover:bg-blue-500 hover:text-white transition"
-                    >
-                        Connect
-                    </button>
-                )}
-            </div>
-        );
-    });
-    return (
-        <>
-            <ToastContainer position="top-right" autoClose={1000} />
-            <div className={`w-full relative flex justify-center p-2 items-center h-screen transition-colors duration-300 ${darkMode ? 'bg-slate-900' : 'bg-gray-800'}`}>
-                <div className={`w-full sm:w-[400px] sm:h-[95%] h-screen rounded-xl relative p-4 shadow-2xl border transition-colors duration-300 ${darkMode
-                    ? 'bg-slate-800 border-slate-700 text-slate-50'
-                    : 'bg-teal-800 border-slate-400 text-slate-900'}`}>
-                    <Header />
-                    <SearchBar
-                        darkMode={darkMode}
-                        searchText={searchText}
-                        setSearchText={setSearchText}
-                        setShowQr={setShowQr}
-                    />
-
-                    {showQr && <QrCodeShow data={user} setShowQr={setShowQr} />}
-
-                    <div className={`mt-4 h-[calc(110vh-350px)] overflow-y-auto p-2 sm:p-4 rounded-lg ${darkMode ? 'bg-slate-800' : 'bg-gray-50'}`}>
-                        {filteredUsers.length === 0 ? (
-                            <p className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-700'}`}>
-                                {searchText ? 'No matching users found' : 'No users online'}
-                            </p>
-                        ) : (
-                            <div className="grid sm:grid-cols-3 grid-cols-2 sm:gap-1.5 gap-4">
-                                {filteredUsers.map(usr => (
-                                    <UserCard key={usr.uid} usr={usr} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </>
-    );
-};
-
+                                        {isPendingRequest ? (
+                                            <div className="flex gap-2 mt-2">
+                                                <button
+                                                    onClick={() => handleAcceptRequest(usr.uid, receivedRequests[usr.uid].roomId)}
+                                                    className="px-3 py-1 bg-green-500 text-white rounded-md text-sm"
+                                                >
+                                                    <Check />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeclineRequest(usr.uid)}
+                                                    className="px-3 py-1 bg-red-500 text-white rounded-md text-sm"
+                                                >
+                                                    <X />
+                                                </button>
+                                            </div>
+                                        ) : requestStatus === 'pending' ? (
+                                            <button className="px-4 py-1.5 bg-yellow-500 text-white rounded-md text-sm capitalize">
+                                                <Loader />
+                                            </button>
+                                        ) : requestStatus === 'accepted' ? (
+                                            <button className="px-4 py-1.5 bg-green-500 text-white rounded-md text-sm capitalize">
+                                                Connected
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => sendJoinRequest(usr)}
+                                                className="border capitalize font-serif px-4 mt-1 py-1.5 rounded-md hover:bg-blue-500 hover:text-white transition"
+                                            >
+                                                Connect
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        
 export default HomePage;
