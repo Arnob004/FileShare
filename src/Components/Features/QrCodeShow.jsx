@@ -8,13 +8,13 @@ const QrCodeShow = ({ data, setShowQr }) => {
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="relative bg-white dark:bg-slate-800 text-gray-800 dark:text-white rounded-2xl shadow-xl ms:w-[25%] py-10 p-4"
+                className="relative bg-white dark:bg-slate-800 border text-gray-800 dark:text-white rounded-2xl shadow-xl ms:w-[25%] py-10 p-4"
             >
                 {/* Close Button */}
                 <button
 
                     onClick={() => setShowQr(false)}
-                    className="absolute hover:scale-115 top-0 right-2.5 text-3xl font-bold text-gray-400 hover:text-red-500 transition-colors"
+                    className="absolute hover:scale-115 hover:rotate-20 top-0 right-2.5 text-3xl font-bold text-gray-400 hover:text-red-500 transition-colors"
                     title="Close"
                 >
                     &times;

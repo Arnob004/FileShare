@@ -16,7 +16,7 @@ function App() {
           </p>
         </div>
         {/* Features List */}
-        <ul className="w-full mt-6 space-y-3">
+        <ul className="w-full mt-2 space-y-1">
           {[
             { icon: <Zap className="text-yellow-400" size={22} />, text: "10x Faster P2P Transfer" },
             { icon: <Wifi className="text-blue-400" size={22} />, text: "Offline Mode (Wi-Fi / Hotspot)" },
@@ -38,7 +38,7 @@ function App() {
         <div className="w-full flex justify-center">
           <Link
             to="/home"
-            className="mt-8 w-3/4 py-4 rounded-full bg-yellow-400 text-black text-center text-xl font-semibold hover:scale-105 hover:shadow-lg transition-transform duration-300 select-none"
+            className="mt-4 w-3/4 py-4 rounded-full bg-yellow-400 text-black text-center text-xl font-semibold hover:scale-105 hover:shadow-lg transition-transform duration-300 select-none"
           >
             Connect Now
           </Link>
